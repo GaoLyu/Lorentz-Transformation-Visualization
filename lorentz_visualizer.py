@@ -1,9 +1,9 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # Title of the app
-st.title("Interactive Lorentz Transformation Tool with Movable Points")
+st.title("Interactive Lorentz Transformation Tool with Zoom and Pan")
 
 # Sidebar for velocity input
 st.sidebar.header("Lorentz Transformation Controls")
@@ -20,38 +20,23 @@ def lorentz_transform(t, x, v):
     x_prime = gamma * (x - v * t)
     return t_prime, x_prime
 
-# Generate grid of points for the main and background grids
-time_range = np.linspace(-5, 5, 100)
-space_range = np.linspace(-5, 5, 100)
-t_grid, x_grid = np.meshgrid(time_range, space_range)
+# Function to generate grid lines
+def generate_grid_lines(velocity):
+    grid_lines = []
+    time_range = np.linspace(-5, 5, 11)
+    space_range = np.linspace(-5, 5, 11)
 
-# Set up the plot
-fig, ax = plt.subplots(figsize=(8, 8))
+    for t in time_range:
+        t_transformed, x_transformed = lorentz_transform(t * np.ones_like(space_range), space_range, velocity)
+        grid_lines.append(go.Scatter(x=x_transformed, y=t_transformed, mode='lines', line=dict(color='red', width=1), showlegend=False))
 
-# Plot the constant background grid (untransformed) in light gray
-for t in np.linspace(-5, 5, 11):
-    ax.plot(space_range, t * np.ones_like(space_range), color='lightgray', linestyle='-', linewidth=0.5)
-for x in np.linspace(-5, 5, 11):
-    ax.plot(x * np.ones_like(time_range), time_range, color='lightgray', linestyle='-', linewidth=0.5)
+    for x in space_range:
+        t_transformed, x_transformed = lorentz_transform(time_range, x * np.ones_like(time_range), velocity)
+        grid_lines.append(go.Scatter(x=x_transformed, y=t_transformed, mode='lines', line=dict(color='blue', width=1), showlegend=False))
 
-# Plot original axes
-ax.axhline(0, color='k', linestyle='--', linewidth=1, label="Original t-axis")
-ax.axvline(0, color='k', linestyle='--', linewidth=1, label="Original x-axis")
+    return grid_lines
 
-# Plot transformed grid lines for time and space
-for t in np.linspace(-5, 5, 11):
-    t_transformed, x_transformed = lorentz_transform(t * np.ones_like(space_range), space_range, velocity)
-    ax.plot(x_transformed, t_transformed, color='red', alpha=0.5)
-
-for x in np.linspace(-5, 5, 11):
-    t_transformed, x_transformed = lorentz_transform(time_range, x * np.ones_like(time_range), velocity)
-    ax.plot(x_transformed, t_transformed, color='blue', alpha=0.5)
-
-# Plot light cones (45-degree lines where x = ±t)
-ax.plot(time_range, time_range, color='green', linestyle='--', label="Light cone (x = t)")
-ax.plot(time_range, -time_range, color='green', linestyle='--', label="Light cone (x = -t)")
-
-# Initialize session state for points
+# Points data
 if 'points' not in st.session_state:
     st.session_state['points'] = []  # Each point will be a tuple: (x, t, color)
 
@@ -77,34 +62,40 @@ if st.sidebar.button("Remove Selected Point"):
 if st.sidebar.button("Clear All Points"):
     st.session_state['points'] = []
 
+# Generate plot data
+plot_data = generate_grid_lines(velocity)
+
 # Transform and plot each point with its color
 for x_point, t_point, color in st.session_state['points']:
     # Apply Lorentz transformation to the points based on current velocity
     t_transformed, x_transformed = lorentz_transform(t_point, x_point, velocity)
-    ax.plot(x_transformed, t_transformed, 'o', color=color, markersize=8)
+    plot_data.append(go.Scatter(x=[x_transformed], y=[t_transformed], mode="markers", marker=dict(color=color, size=10), showlegend=False))
 
-# Set axis labels and limits
-ax.set_xlabel("Space (x)")
-ax.set_ylabel("Time (t)")
-ax.set_xlim(-5, 5)
-ax.set_ylim(-5, 5)
-ax.set_aspect('equal')
-ax.legend(loc="upper left")
-ax.set_title(f"Lorentz Transformation with Relative Velocity = {velocity:.2f}c")
+# Add light cones (x=t and x=-t lines)
+time_range = np.linspace(-5, 5, 100)
+plot_data.append(go.Scatter(x=time_range, y=time_range, mode="lines", line=dict(dash="dash", color="green"), name="Light cone (x = t)"))
+plot_data.append(go.Scatter(x=time_range, y=-time_range, mode="lines", line=dict(dash="dash", color="green"), name="Light cone (x = -t)"))
 
-# Show the plot in Streamlit
-st.pyplot(fig)
+# Configure Plotly layout
+layout = go.Layout(
+    xaxis=dict(title="Space (x)", range=[-5, 5], fixedrange=False),
+    yaxis=dict(title="Time (t)", range=[-5, 5], fixedrange=False),
+    title=f"Lorentz Transformation with Relative Velocity = {velocity:.2f}c",
+    dragmode="pan"
+)
+
+# Display plot in Streamlit
+fig = go.Figure(data=plot_data, layout=layout)
+st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
 
 # Explanation
-st.write("## Lorentz Transformation Tool with Movable Points")
+st.write("## Lorentz Transformation Tool with Zoom and Pan")
 st.write("""
 This tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
 
-- The light gray grid represents the **reference grid** at zero velocity, which remains fixed as a reference.
-- The red lines represent the transformed grid lines of constant time \(t'\).
-- The blue lines represent the transformed grid lines of constant position \(x'\).
-- The green dashed lines represent the light cone (\(x = \pm t\)), which remains invariant, representing the constant speed of light.
-- Points can be added to the graph with specific \(x\), \(t\) coordinates and color, and they will transform along with the grid.
+- The red and blue grid lines show the Lorentz-transformed coordinates of constant time \(t'\) and constant position \(x'\).
+- The green dashed lines represent the light cone (\(x = \pm t\)), representing the constant speed of light.
+- Points can be added at specific \(x\) and \(t\) coordinates with chosen colors, and they will transform along with the grid as the velocity changes.
 
-Use the slider in the sidebar to adjust the relative velocity or enter it directly in the text box to observe how the coordinates are transformed relative to the reference grid.
+Use the slider in the sidebar to adjust the relative velocity or enter it directly in the text box. You can zoom in, zoom out, and pan the graph using the Plotly toolbar.
 """)
