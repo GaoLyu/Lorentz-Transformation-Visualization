@@ -7,8 +7,11 @@ st.title("Interactive Lorentz Transformation Tool")
 
 # Sidebar for velocity input
 st.sidebar.header("Lorentz Transformation Controls")
-velocity = st.sidebar.slider("Relative Velocity (as a fraction of the speed of light, c)", -0.99, 0.99, 0.5)
-st.sidebar.write("Velocity chosen:", velocity, "c")
+
+# Velocity input options: slider and text box
+velocity_slider = st.sidebar.slider("Relative Velocity (as a fraction of the speed of light, c)", -0.99, 0.99, 0.5)
+velocity_input = st.sidebar.number_input("Or enter velocity directly:", min_value=-0.99, max_value=0.99, value=velocity_slider, step=0.01)
+velocity = velocity_input if velocity_input != velocity_slider else velocity_slider
 
 # Lorentz transformation function
 def lorentz_transform(t, x, v):
@@ -66,5 +69,5 @@ This interactive tool visualizes the Lorentz transformation for an observer movi
 - The blue lines represent the transformed grid lines of constant position \(x'\).
 - The green dashed lines represent the light cone (\(x = \pm t\)), which remains invariant, representing the constant speed of light.
 
-Use the slider in the sidebar to adjust the relative velocity and observe how the coordinates are transformed.
+Use the slider in the sidebar to adjust the relative velocity or enter it directly in the text box to observe how the coordinates are transformed.
 """)
