@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Title of the app
-st.title("Interactive Lorentz Transformation Tool")
+st.title("Interactive Lorentz Transformation Tool with Constant Reference Grid")
 
 # Sidebar for velocity input
 st.sidebar.header("Lorentz Transformation Controls")
@@ -20,22 +20,28 @@ def lorentz_transform(t, x, v):
     x_prime = gamma * (x - v * t)
     return t_prime, x_prime
 
-# Generate grid of points
+# Generate grid of points for the main and background grids
 time_range = np.linspace(-5, 5, 100)
 space_range = np.linspace(-5, 5, 100)
 t_grid, x_grid = np.meshgrid(time_range, space_range)
 
-# Apply Lorentz transformation to the grid of points
+# Apply Lorentz transformation to the main grid of points based on user-selected velocity
 t_prime_grid, x_prime_grid = lorentz_transform(t_grid, x_grid, velocity)
 
 # Set up the plot
 fig, ax = plt.subplots(figsize=(8, 8))
 
+# Plot the constant background grid (untransformed) in light gray
+for t in np.linspace(-5, 5, 11):
+    ax.plot(space_range, t * np.ones_like(space_range), color='lightgray', linestyle='-', linewidth=0.5)
+for x in np.linspace(-5, 5, 11):
+    ax.plot(x * np.ones_like(time_range), time_range, color='lightgray', linestyle='-', linewidth=0.5)
+
 # Plot original axes
 ax.axhline(0, color='k', linestyle='--', linewidth=1, label="Original t-axis")
 ax.axvline(0, color='k', linestyle='--', linewidth=1, label="Original x-axis")
 
-# Plot transformed grid lines for t and x
+# Plot transformed grid lines for time and space
 for t in np.linspace(-5, 5, 11):
     t_transformed, x_transformed = lorentz_transform(t * np.ones_like(space_range), space_range, velocity)
     ax.plot(x_transformed, t_transformed, color='red', alpha=0.5)
@@ -61,13 +67,14 @@ ax.set_title(f"Lorentz Transformation with Relative Velocity = {velocity:.2f}c")
 st.pyplot(fig)
 
 # Explanation
-st.write("## Lorentz Transformation Tool")
+st.write("## Lorentz Transformation Tool with Constant Reference Grid")
 st.write("""
-This interactive tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
+This tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
 
+- The light gray grid represents the **reference grid** at zero velocity, which remains fixed as a reference.
 - The red lines represent the transformed grid lines of constant time \(t'\).
 - The blue lines represent the transformed grid lines of constant position \(x'\).
 - The green dashed lines represent the light cone (\(x = \pm t\)), which remains invariant, representing the constant speed of light.
 
-Use the slider in the sidebar to adjust the relative velocity or enter it directly in the text box to observe how the coordinates are transformed.
+Use the slider in the sidebar to adjust the relative velocity or enter it directly in the text box to observe how the coordinates are transformed relative to the reference grid.
 """)
