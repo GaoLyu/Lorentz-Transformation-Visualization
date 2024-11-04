@@ -1,9 +1,10 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
+from sympy import symbols, lambdify, sympify
 
 # Title of the app
-st.title("Interactive Lorentz Transformation Tool with Differentiated Axis Highlights")
+st.title("Interactive Lorentz Transformation Tool with Optional Curve Plotting")
 
 # Sidebar for velocity input
 st.sidebar.header("Lorentz Transformation Controls")
@@ -49,14 +50,6 @@ def generate_reference_grid():
     for t in time_range:
         grid_lines.append(go.Scatter(x=space_range, y=t * np.ones_like(space_range), mode='lines', line=dict(color='lightgray', width=0.5), showlegend=False))
 
-    # Gray highlight for original t and x axes in the reference frame
-    grid_lines.append(go.Scatter(x=[0, 0], y=[-5, 5], mode='lines', line=dict(color='rgba(200, 200, 200, 0.3)', width=10), showlegend=False))
-    grid_lines.append(go.Scatter(x=[-5, 5], y=[0, 0], mode='lines', line=dict(color='rgba(200, 200, 200, 0.3)', width=10), showlegend=False))
-
-    # Original reference axes on top of highlight
-    grid_lines.append(go.Scatter(x=[0, 0], y=[-5, 5], mode='lines', line=dict(color='gray', width=2, dash='dot'), name="Reference t-axis"))
-    grid_lines.append(go.Scatter(x=[-5, 5], y=[0, 0], mode='lines', line=dict(color='gray', width=2, dash='dot'), name="Reference x-axis"))
-    
     return grid_lines
 
 # Function to generate transformed frame axes with yellow highlight
@@ -65,9 +58,7 @@ def generate_transformed_axes(velocity):
     t_range = np.linspace(-5, 5, 100)
     t_prime, x_prime = lorentz_transform(t_range, np.zeros_like(t_range), velocity)
     transformed_axes = [
-        # Yellow highlight for transformed t' axis
         go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='rgba(255, 255, 0, 0.3)', width=10), showlegend=False),
-        # Line for transformed t' axis
         go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='red', width=2, dash='dash'), name="Transformed t'-axis")
     ]
 
@@ -104,39 +95,43 @@ if st.sidebar.button("Remove Selected Point"):
 if st.sidebar.button("Clear All Points"):
     st.session_state['points'] = {}
 
-# Custom alignment of points
-st.sidebar.subheader("Align Points with Time Axis")
-if len(st.session_state['points']) >= 2:
-    points_list = [(i, f"Point {i+1} ({x}, {t})") for i, (x, t) in enumerate(st.session_state['points'].keys())]
-    selected_points = st.sidebar.multiselect("Select two points to align:", points_list, max_selections=2)
-    
-    if len(selected_points) == 2:
-        index1, index2 = selected_points[0][0], selected_points[1][0]
-        (x1, t1), (x2, t2) = list(st.session_state['points'].keys())[index1], list(st.session_state['points'].keys())[index2]
-        
-        # Calculate the required velocity to align selected points vertically
-        def calculate_velocity_for_alignment(x1, t1, x2, t2):
-            delta_x = x2 - x1
-            delta_t = t2 - t1
+# Curve plotting section with enable option
+enable_curve = st.sidebar.checkbox("Enable Curve Plotting")
+if enable_curve:
+    st.sidebar.subheader("Add Curve")
+    curve_expr = st.sidebar.text_input("Enter curve expression in terms of x (e.g., x**2 + 2*x + 3)", "x**2")
+    curve_color = st.sidebar.color_picker("Choose Curve Color", "#FF00FF")
 
-            if delta_t == 0:
-                st.error("The selected points have the same t-coordinate. Choose different points.")
-                return None
-            velocity = delta_x / delta_t
+    # Define symbols
+    x = symbols('x')
 
-            if abs(velocity) >= 1:
-                st.error("Calculated velocity exceeds the speed of light. Adjust point selection.")
-                return None
-            return velocity
+    # Try to generate the curve
+    try:
+        if curve_expr.strip():  # Only try if there's an input
+            # Convert the user input to a sympy expression and create a lambda function for it
+            curve_function = lambdify(x, sympify(curve_expr), modules=['numpy'])
+            x_vals = np.linspace(-5, 5, 100)
+            y_vals = curve_function(x_vals)
+            
+            # Apply Lorentz transformation to curve points
+            t_transformed, x_transformed = lorentz_transform(y_vals, x_vals, velocity)
 
-        # Calculate velocity and apply if valid
-        align_velocity = calculate_velocity_for_alignment(x1, t1, x2, t2)
-        if align_velocity is not None:
-            st.write(f"Calculated alignment velocity: {align_velocity:.2f}c")
-            velocity = align_velocity
+            # Plot the transformed curve
+            curve_trace = go.Scatter(x=x_transformed, y=t_transformed, mode="lines", line=dict(color=curve_color, width=2), name="Transformed Curve")
+        else:
+            curve_trace = None
+    except Exception as e:
+        st.error(f"Could not plot curve '{curve_expr}': {e}")
+        curve_trace = None
+else:
+    curve_trace = None  # Disable curve plotting if unchecked
 
-# Generate plot data with the (possibly adjusted) velocity
+# Generate plot data with transformed grid and reference grid
 plot_data = generate_reference_grid() + generate_transformed_grid_lines(velocity) + generate_transformed_axes(velocity)
+
+# Add the curve if successfully created
+if curve_trace:
+    plot_data.append(curve_trace)
 
 # Transform and plot each point with its color
 for (x_point, t_point), color in st.session_state['points'].items():
@@ -161,13 +156,12 @@ fig = go.Figure(data=plot_data, layout=layout)
 st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
 
 # Explanation
-st.write("## Lorentz Transformation Tool with Differentiated Axis Highlights")
+st.write("## Lorentz Transformation Tool with Optional Curve Plotting")
 st.write("""
 This tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
 
-- The **gray-highlighted lines** represent the original \( t \)- and \( x \)-axes in the reference frame.
-- The **yellow-highlighted lines** represent the \( t' \)- and \( x' \)-axes in the transformed frame, reflecting the effect of the Lorentz transformation.
-- The **red and blue lines** show the Lorentz-transformed grid lines of constant time \( t' \) and constant position \( x' \).
+- Enter a curve expression in the form of `x**2 + 2*x + 3` (using Python-style `**` for powers) if curve plotting is enabled.
+- Adjust the velocity to see how the Lorentz transformation affects the grid, points, and optional curve.
+- The **red and blue grid lines** show the Lorentz-transformed coordinates of constant time \(t'\) and constant position \(x'\).
 - The **green dashed lines** represent the light cone (\(x = \pm t\)).
-- Use the sliders or direct input to adjust the relative velocity, and you can add, update, and align points as needed.
 """)
