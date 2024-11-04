@@ -12,11 +12,12 @@ mode = st.sidebar.selectbox("Choose mode", ("2D", "3D"))
 st.sidebar.header("Lorentz Transformation Controls")
 
 if mode == "2D":
+    # For 2D mode: Single velocity input
     velocity_slider = st.sidebar.slider("Relative Velocity (as a fraction of the speed of light, c)", -0.99, 0.99, 0.5)
     velocity_input = st.sidebar.number_input("Or enter velocity directly:", min_value=-0.99, max_value=0.99, value=velocity_slider, step=0.01)
     velocity = velocity_input if velocity_input != velocity_slider else velocity_slider
 else:
-    # Velocity components input for 3D (as fractions of the speed of light)
+    # For 3D mode: Separate velocity components in x and y directions
     v_x_slider = st.sidebar.slider("Velocity in X direction (as a fraction of c)", -0.99, 0.99, 0.5)
     v_x_input = st.sidebar.number_input("Or enter v_x directly:", min_value=-0.99, max_value=0.99, value=v_x_slider, step=0.01)
     v_x = v_x_input if v_x_input != v_x_slider else v_x_slider
@@ -159,6 +160,14 @@ if mode == "2D":
         xaxis=dict(title="Space (x)", range=[-5, 5]), yaxis=dict(title="Time (t)", range=[-5, 5]), dragmode="pan"
     ))
     st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
+    st.write("## 2D Lorentz Transformation Tool")
+    st.write("""
+    This tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
+
+    - The red and blue grid lines show the Lorentz-transformed coordinates of constant time \(t'\) and constant position \(x'\).
+    - The green dashed lines represent the light cone (\(x = \pm t\)), representing the constant speed of light.
+    - Points can be added at specific \(x\) and \(t\) coordinates with chosen colors, and they will transform along with the grid as the velocity changes.
+    """)
 else:
     plot_data = generate_grid_lines_3d(v_x, v_y)
     for x_point, y_point, t_point, color in [p for p in st.session_state['points'] if len(p) == 4]:
@@ -169,6 +178,10 @@ else:
         title=f"3D Lorentz Transformation with Velocity Components v_x = {v_x:.2f}c, v_y = {v_y:.2f}c"
     ))
     st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
+    st.write("## 3D Lorentz Transformation Tool")
+    st.write("""
+    This tool visualizes the Lorentz transformation in 3D space for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along both the \(x\)- and \(y\)-axes.
 
-st.write("## Lorentz Transformation Tool")
-st.write("This tool visualizes the Lorentz transformation for an observer moving at a relative velocity along either 2D or 3D axes...")
+    - The grid lines now form a fully connected 3D lattice with reduced density, allowing for a clearer visualization without excessive clutter.
+    - Points can be added at specific \(x\), \(y\), and \(t\) coordinates with chosen colors, and they will transform along with the grid as the velocity changes.
+    """)
