@@ -51,7 +51,7 @@ def generate_reference_grid():
 
 # Points data
 if 'points' not in st.session_state:
-    st.session_state['points'] = []  # Each point will be a tuple: (x, t, color)
+    st.session_state['points'] = {}  # Dictionary to store points by coordinates (x, t): color
 
 # Input for adding new points
 st.sidebar.subheader("Add Points")
@@ -59,32 +59,30 @@ x_coord = st.sidebar.number_input("X-coordinate", min_value=-5.0, max_value=5.0,
 t_coord = st.sidebar.number_input("T-coordinate", min_value=-5.0, max_value=5.0, step=0.5, key="t_coord")
 point_color = st.sidebar.color_picker("Choose Point Color", "#800080")
 
-# Button to add the point with the selected color
-if st.sidebar.button("Add Point"):
-    new_point = (x_coord, t_coord, point_color)
-    if new_point not in st.session_state['points']:
-        st.session_state['points'].append(new_point)  # Add new point with its color
+# Button to add or update the point with the selected color
+if st.sidebar.button("Add/Update Point"):
+    st.session_state['points'][(x_coord, t_coord)] = point_color  # Update color if point exists, else add new
 
 # Dropdown to select and remove points
 st.sidebar.subheader("Remove Points")
-point_to_remove = st.sidebar.selectbox("Select a point to remove", [(p[0], p[1]) for p in st.session_state['points']])
+point_to_remove = st.sidebar.selectbox("Select a point to remove", [(x, t) for (x, t) in st.session_state['points']])
 if st.sidebar.button("Remove Selected Point"):
-    st.session_state['points'] = [p for p in st.session_state['points'] if (p[0], p[1]) != point_to_remove]
+    if (point_to_remove[0], point_to_remove[1]) in st.session_state['points']:
+        del st.session_state['points'][(point_to_remove[0], point_to_remove[1])]
 
 # Button to clear all points
 if st.sidebar.button("Clear All Points"):
-    st.session_state['points'] = []
+    st.session_state['points'] = {}
 
 # Custom alignment of points
 st.sidebar.subheader("Align Points with Time Axis")
 if len(st.session_state['points']) >= 2:
-    points_list = [(i, f"Point {i+1} ({p[0]}, {p[1]})") for i, p in enumerate(st.session_state['points'])]
+    points_list = [(i, f"Point {i+1} ({x}, {t})") for i, (x, t) in enumerate(st.session_state['points'].keys())]
     selected_points = st.sidebar.multiselect("Select two points to align:", points_list, max_selections=2)
     
     if len(selected_points) == 2:
         index1, index2 = selected_points[0][0], selected_points[1][0]
-        x1, t1 = st.session_state['points'][index1][:2]
-        x2, t2 = st.session_state['points'][index2][:2]
+        (x1, t1), (x2, t2) = list(st.session_state['points'].keys())[index1], list(st.session_state['points'].keys())[index2]
         
         # Calculate the required velocity to align selected points vertically
         def calculate_velocity_for_alignment(x1, t1, x2, t2):
@@ -111,7 +109,7 @@ if len(st.session_state['points']) >= 2:
 plot_data = generate_reference_grid() + generate_transformed_grid_lines(velocity)
 
 # Transform and plot each point with its color
-for x_point, t_point, color in st.session_state['points']:
+for (x_point, t_point), color in st.session_state['points'].items():
     t_transformed, x_transformed = lorentz_transform(t_point, x_point, velocity)
     plot_data.append(go.Scatter(x=[x_transformed], y=[t_transformed], mode="markers", marker=dict(color=color, size=10), showlegend=False))
 
