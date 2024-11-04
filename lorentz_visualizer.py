@@ -3,7 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 # Title of the app
-st.title("Interactive Lorentz Transformation Tool with Custom Point Alignment")
+st.title("Interactive Lorentz Transformation Tool with Differentiated Axis Highlights")
 
 # Sidebar for velocity input
 st.sidebar.header("Lorentz Transformation Controls")
@@ -20,7 +20,7 @@ def lorentz_transform(t, x, v):
     x_prime = gamma * (x - v * t)
     return t_prime, x_prime
 
-# Function to generate grid lines
+# Function to generate transformed grid lines
 def generate_transformed_grid_lines(velocity):
     grid_lines = []
     time_range = np.linspace(-5, 5, 11)
@@ -37,17 +37,47 @@ def generate_transformed_grid_lines(velocity):
 
     return grid_lines
 
-# Function to generate fixed vertical reference grid lines
+# Function to generate fixed vertical reference grid lines and original axes with gray highlight
 def generate_reference_grid():
     grid_lines = []
     time_range = np.linspace(-5, 5, 11)
     space_range = np.linspace(-5, 5, 11)
 
-    # Vertical gray reference lines (untransformed)
+    # Vertical and horizontal gray reference lines for static frame
     for x in space_range:
         grid_lines.append(go.Scatter(x=x * np.ones_like(time_range), y=time_range, mode='lines', line=dict(color='lightgray', width=0.5), showlegend=False))
+    for t in time_range:
+        grid_lines.append(go.Scatter(x=space_range, y=t * np.ones_like(space_range), mode='lines', line=dict(color='lightgray', width=0.5), showlegend=False))
+
+    # Gray highlight for original t and x axes in the reference frame
+    grid_lines.append(go.Scatter(x=[0, 0], y=[-5, 5], mode='lines', line=dict(color='rgba(200, 200, 200, 0.3)', width=10), showlegend=False))
+    grid_lines.append(go.Scatter(x=[-5, 5], y=[0, 0], mode='lines', line=dict(color='rgba(200, 200, 200, 0.3)', width=10), showlegend=False))
+
+    # Original reference axes on top of highlight
+    grid_lines.append(go.Scatter(x=[0, 0], y=[-5, 5], mode='lines', line=dict(color='gray', width=2, dash='dot'), name="Reference t-axis"))
+    grid_lines.append(go.Scatter(x=[-5, 5], y=[0, 0], mode='lines', line=dict(color='gray', width=2, dash='dot'), name="Reference x-axis"))
     
     return grid_lines
+
+# Function to generate transformed frame axes with yellow highlight
+def generate_transformed_axes(velocity):
+    # Transformed t'-axis (x=0)
+    t_range = np.linspace(-5, 5, 100)
+    t_prime, x_prime = lorentz_transform(t_range, np.zeros_like(t_range), velocity)
+    transformed_axes = [
+        # Yellow highlight for transformed t' axis
+        go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='rgba(255, 255, 0, 0.3)', width=10), showlegend=False),
+        # Line for transformed t' axis
+        go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='red', width=2, dash='dash'), name="Transformed t'-axis")
+    ]
+
+    # Transformed x'-axis (t=0)
+    x_range = np.linspace(-5, 5, 100)
+    t_prime, x_prime = lorentz_transform(np.zeros_like(x_range), x_range, velocity)
+    transformed_axes.append(go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='rgba(255, 255, 0, 0.3)', width=10), showlegend=False))
+    transformed_axes.append(go.Scatter(x=x_prime, y=t_prime, mode='lines', line=dict(color='blue', width=2, dash='dash'), name="Transformed x'-axis"))
+    
+    return transformed_axes
 
 # Points data
 if 'points' not in st.session_state:
@@ -106,7 +136,7 @@ if len(st.session_state['points']) >= 2:
             velocity = align_velocity
 
 # Generate plot data with the (possibly adjusted) velocity
-plot_data = generate_reference_grid() + generate_transformed_grid_lines(velocity)
+plot_data = generate_reference_grid() + generate_transformed_grid_lines(velocity) + generate_transformed_axes(velocity)
 
 # Transform and plot each point with its color
 for (x_point, t_point), color in st.session_state['points'].items():
@@ -131,13 +161,13 @@ fig = go.Figure(data=plot_data, layout=layout)
 st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
 
 # Explanation
-st.write("## Lorentz Transformation Tool with Zoom and Pan")
+st.write("## Lorentz Transformation Tool with Differentiated Axis Highlights")
 st.write("""
 This tool visualizes the Lorentz transformation for an observer moving at a relative velocity \(v\) (as a fraction of the speed of light \(c\)) along the \(x\)-axis.
 
-- The gray vertical lines serve as reference lines that remain fixed, providing a frame to observe how the grid transforms.
-- The red and blue grid lines show the Lorentz-transformed coordinates of constant time \(t'\) and constant position \(x'\).
-- The green dashed lines represent the light cone (\(x = \pm t\)), representing the constant speed of light.
-- Points can be added at specific \(x\) and \(t\) coordinates with chosen colors, and they will transform along with the grid as the velocity changes.
-- **Custom Alignment**: Select two points to automatically align the line connecting them with the \(t\)-axis by adjusting the velocity.
+- The **gray-highlighted lines** represent the original \( t \)- and \( x \)-axes in the reference frame.
+- The **yellow-highlighted lines** represent the \( t' \)- and \( x' \)-axes in the transformed frame, reflecting the effect of the Lorentz transformation.
+- The **red and blue lines** show the Lorentz-transformed grid lines of constant time \( t' \) and constant position \( x' \).
+- The **green dashed lines** represent the light cone (\(x = \pm t\)).
+- Use the sliders or direct input to adjust the relative velocity, and you can add, update, and align points as needed.
 """)
